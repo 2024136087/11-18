@@ -1,0 +1,107 @@
+shared_preferences 패키지를 이용해서 "화면 중앙에 숫자를 표시하고 오른쪽 하단 버튼을 눌렀을 때 숫자가 증가하며, 
+앱시 실행했을 때 저장된 값을 설정하여 표시하고 버튼을 클릭했을 때 증가된 마지막 값을 shared_preferences를 이용해 저장해줘"
+
+자 이제 shared_preferences를 이용해서 최초 앱을 실행했을 때 앱에 관련된 설명을 하는 창을 띄우고 간단히 앱 설명을 해주고 
+닫기 버튼을 누르면 그 창은 닫히고 기존 동작을 계속 할 수 있게 해주고, 종료하고 다시 실행을 때는 더이상 최초 앱을 실행했을 때 뜨는 창을 띄우지 않고 바로 시작하도록 해줘
+
+import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+void main() {
+  runApp(const MyApp());
+}
+
+class MyApp extends StatelessWidget {
+  const MyApp({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      home: const CounterPage(),
+    );
+  }
+}
+
+class CounterPage extends StatefulWidget {
+  const CounterPage({super.key});
+
+  @override
+  State<CounterPage> createState() => _CounterPageState();
+}
+
+class _CounterPageState extends State<CounterPage> {
+  int _counter = 0;
+  static const _prefsKey = 'counter';
+  static const _firstRunKey = 'seen_intro';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCounter();
+    _checkFirstRun();
+  }
+
+  Future<void> _loadCounter() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _counter = prefs.getInt(_prefsKey) ?? 0;
+    });
+  }
+
+  Future<void> _checkFirstRun() async {
+    final prefs = await SharedPreferences.getInstance();
+    final seen = prefs.getBool(_firstRunKey) ?? false;
+    if (!seen) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('앱 소개'),
+              content: const Text(
+                '이 앱은 중앙에 숫자를 표시합니다.\n'
+                '오른쪽 하단의 버튼을 누르면 숫자가 증가하고, 값은 자동으로 저장됩니다.',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    await prefs.setBool(_firstRunKey, true);
+                    if (mounted) Navigator.of(context).pop();
+                  },
+                  child: const Text('닫기'),
+                ),
+              ],
+            );
+          },
+        );
+      });
+    }
+  }
+
+  Future<void> _incrementAndSave() async {
+    setState(() => _counter++);
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(_prefsKey, _counter);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: Text(
+          '$_counter',
+          style: const TextStyle(fontSize: 64, fontWeight: FontWeight.bold),
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _incrementAndSave,
+        child: const Icon(Icons.add),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
+    );
+  }
+}
+
+
